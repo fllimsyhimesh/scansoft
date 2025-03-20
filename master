@@ -215,14 +215,14 @@ class DocumentScannerApp:
                         <div class="card-icon">🛂</div>
                         <h2 class="card-title">Passport</h2>
                         <p class="card-text">Scan and extract information from passport documents.</p>
-                        <a href="myapp://passport" class="btn">Scan Passport</a>
+                        <a href="myapp:///passport" class="btn">Scan Passport</a>
                     </div>
 
                     <div class="card">
                         <div class="card-icon">🪪</div>
                         <h2 class="card-title">Aadhaar</h2>
                         <p class="card-text">Scan and extract information from Aadhaar card documents.</p>
-                        <a href="myapp://aadhaar" class="btn">Scan Aadhaar</a>
+                        <a href="myapp:///aadhaar" class="btn">Scan Aadhaar</a>
                     </div>
                 </div>
 
@@ -241,27 +241,23 @@ class DocumentScannerApp:
         self.html_frame.bind("<<TKWebLink>>", self.handle_link_click)
 
     def handle_link_click(self, event):
-        url = self.link_text
-        print(f"A link to '{url}' was clicked")
+        url = event.widget.get_url()
+        print(f"Link clicked: {url}")
 
-        if url.startswith("myapp://"):
-            path = url.replace("myapp://", "")
-            print(f"Connecting to {path}")
-
-            # Handle internal application URLs
-            if path == "passport":
-                # Call appropriate function to handle passport section
-                self.master.show_passport_section()  # Define this method in your app
-            elif path == "some_other_path":
-                # Handle other internal paths
-                pass
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if parsed_url.scheme == "myapp":
+                if parsed_url.path == "/passport":
+                    self.open_passport_window()
+                elif parsed_url.path == "/aadhaar":
+                    self.open_aadhaar_window()
+                else:
+                    print(f"Unknown myapp URL path: {parsed_url.path}")
             else:
-                print(f"Unknown internal path: {path}")
-        else:
-            # For standard URLs, use webbrowser
-            import webbrowser
-            webbrowser.open(url)
+                print(f"Unknown URL scheme: {parsed_url.scheme}")
 
+        except Exception as e:
+            print(f"Error handling link click: {e}")
 
     def show_about_dialog(self):
         about_window = ttk.Toplevel(self.root)
@@ -803,17 +799,17 @@ class DocumentScannerApp:
            print(f"Unknown URL clicked in file selector: {url}")
 
     def select_files_and_update_ui(self, file_list,  doc_type):
+        # ... (previous code) ...
         files = self.select_files(file_list)
         if files:
             # Update the HTML list with selected files
-             file_list_string = json.dumps(files)
-             script = f"updateFileList({file_list_string})"
+            file_list_string = json.dumps(files)
+            script = f"updateFileList({file_list_string})"
 
-             try:
+            try:
                 self.file_selector_html_frame.run_script(script)  # Use run_script
-             except Exception as e:
+            except Exception as e:
                 print(f"Error running script: {e}")
-
 
     def process_selected_files(self, file_list, doc_type, file_list_window):
         selected_files = [file_list.get(i) for i in range(file_list.size())]
@@ -830,121 +826,122 @@ class DocumentScannerApp:
         content_frame = ttk.Frame(self.main_frame)
         content_frame.pack(fill=BOTH, expand=YES, padx=20, pady=20)
 
-        self.passport_html_frame = HtmlFrame(content_frame) # Make sure to assign it to self
+        # Create a new HtmlFrame for the passport window
+        self.passport_html_frame = HtmlFrame(content_frame)
         self.passport_html_frame.pack(fill=BOTH, expand=YES)
 
         html_content = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    margin: 0;
-                    padding: 0;
-                    background-color: #f8f9fa;
-                    color: #212529;
-                }
-                .container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 20px;
-                    text-align: center;
-                }
-                h1 {
-                    color: #0d6efd;
-                    margin-bottom: 30px;
-                    font-size: 36px;
-                }
-                .card-container {
-                    display: flex;
-                    justify-content: center;
-                    margin-top: 30px;
-                    gap: 40px;
-                }
-                .card {
-                    background-color: white;
-                    border-radius: 10px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                    padding: 30px;
-                    width: 300px;
-                    text-align: center;
-                    transition: transform 0.3s ease, box-shadow 0.3s ease;
-                }
-                .card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-                }
-                .card-icon {
-                    font-size: 64px;
-                    margin-bottom: 20px;
-                }
-                .card-title {
-                    font-size: 24px;
-                    margin-bottom: 15px;
-                    color: #0d6efd;
-                }
-                .card-text {
-                    color: #6c757d;
-                    margin-bottom: 20px;
-                }
-                .btn {
-                    display: inline-block;
-                    padding: 12px 20px;
-                    background-color: #0d6efd;
-                    color: white;
-                    border-radius: 5px;
-                    text-decoration: none;
-                    font-weight: bold;
-                    transition: transform 0.3s ease;
-                    cursor: pointer;
-                }
-                .btn:hover {
-                    background-color: #0b5ed7;
-                }
-                .footer {
-                    margin-top: 40px;
-                    color: #6c757d;
-                    font-size: 14px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Passport Scanner</h1>
-                <p>Select the type of passport file you want to scan.</p>
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            margin: 0;
+                            padding: 0;
+                            background-color: #f8f9fa;
+                            color: #212529;
+                        }
+                        .container {
+                            max-width: 800px;
+                            margin: 0 auto;
+                            padding: 20px;
+                            text-align: center;
+                        }
+                        h1 {
+                            color: #0d6efd;
+                            margin-bottom: 30px;
+                            font-size: 36px;
+                        }
+                        .card-container {
+                            display: flex;
+                            justify-content: center;
+                            margin-top: 30px;
+                            gap: 40px;
+                        }
+                        .card {
+                            background-color: white;
+                            border-radius: 10px;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                            padding: 30px;
+                            width: 300px;
+                            text-align: center;
+                            transition: transform 0.3s ease, box-shadow 0.3s ease;
+                        }
+                        .card:hover {
+                            transform: translateY(-5px);
+                            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+                        }
+                        .card-icon {
+                            font-size: 64px;
+                            margin-bottom: 20px;
+                        }
+                        .card-title {
+                            font-size: 24px;
+                            margin-bottom: 15px;
+                            color: #0d6efd;
+                        }
+                        .card-text {
+                            color: #6c757d;
+                            margin-bottom: 20px;
+                        }
+                        .btn {
+                            display: inline-block;
+                            padding: 12px 20px;
+                            background-color: #0d6efd;
+                            color: white;
+                            border-radius: 5px;
+                            text-decoration: none;
+                            font-weight: bold;
+                            transition: transform 0.3s ease;
+                            cursor: pointer;
+                        }
+                        .btn:hover {
+                            background-color: #0b5ed7;
+                        }
+                        .footer {
+                            margin-top: 40px;
+                            color: #6c757d;
+                            font-size: 14px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Passport Scanner</h1>
+                        <p>Select the type of passport file you want to scan.</p>
 
-                <div class="card-container">
-                    <div class="card">
-                        <div class="card-icon">🛂</div>
-                        <h2 class="card-title">Front Page</h2>
-                        <p class="card-text">Scan and extract information from the front page of the passport.</p>
-                        <a href="myapp:///passport_front" class="btn" id="passport-front-btn">Scan Front Page</a>
+                        <div class="card-container">
+                            <div class="card">
+                                <div class="card-icon">🛂</div>
+                                <h2 class="card-title">Front Page</h2>
+                                <p class="card-text">Scan and extract information from the front page of the passport.</p>
+                                <a href="myapp:///passport_front" class="btn" id="passport-front-btn">Scan Front Page</a>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-icon">📄</div>
+                                <h2 class="card-title">Back Page</h2>
+                                <p class="card-text">Scan and extract information from the back page of the passport.</p>
+                                <a href="myapp:///passport_back" class="btn" id="passport-back-btn">Scan Back Page</a>
+                            </div>
+                        </div>
+                        <div class="btn-container">
+                            <a href="myapp:///createWelcomeScreen" class="btn btn-secondary" id="back-btn">Back</a>
+                            <a href="myapp:///exitApp" class="btn btn-danger" id="exit-btn">Exit</a>
+                        </div>
+                        <div class="footer">
+                            <p>Powered by Gemini AI</p>
+                        </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-icon">📄</div>
-                        <h2 class="card-title">Back Page</h2>
-                        <p class="card-text">Scan and extract information from the back page of the passport.</p>
-                        <a href="myapp:///passport_back" class="btn" id="passport-back-btn">Scan Back Page</a>
-                    </div>
-                </div>
-                <div class="btn-container">
-                    <a href="myapp:///createWelcomeScreen" class="btn btn-secondary" id="back-btn">Back</a>
-                    <a href="myapp:///exitApp" class="btn btn-danger" id="exit-btn">Exit</a>
-                </div>
-                <div class="footer">
-                    <p>Powered by Gemini AI</p>
-                </div>
-            </div>
-
-        </body>
-        </html>
-        """
+                </body>
+                </html>
+                """
 
         self.passport_html_frame.load_html(html_content)
+        # Bind the <<TKWebLink>> event in the passport window
         self.passport_html_frame.bind("<<TKWebLink>>", self.handle_passport_link_click)
-
 
     def handle_passport_link_click(self, event):
         url = event.widget.get_url()
@@ -973,117 +970,118 @@ class DocumentScannerApp:
         content_frame = ttk.Frame(self.main_frame)
         content_frame.pack(fill=BOTH, expand=YES, padx=20, pady=20)
 
+        # Create a new HtmlFrame for the aadhaar window
         self.aadhaar_html_frame = HtmlFrame(content_frame)
         self.aadhaar_html_frame.pack(fill=BOTH, expand=YES)
 
         html_content = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    margin: 0;
-                    padding: 0;
-                    background-color: #f8f9fa;
-                    color: #212529;
-                }
-                .container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 20px;
-                    text-align: center;
-                }
-                h1 {
-                    color: #0d6efd;
-                    margin-bottom: 30px;
-                    font-size: 36px;
-                }
-                .card-container {
-                    display: flex;
-                    justify-content: center;
-                    margin-top: 30px;
-                    gap: 40px;
-                }
-                .card {
-                    background-color: white;
-                    border-radius: 10px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                    padding: 30px;
-                    width: 300px;
-                    text-align: center;
-                    transition: transform 0.3s ease, box-shadow 0.3s ease;
-                }
-                .card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-                }
-                .card-icon {
-                    font-size: 64px;
-                    margin-bottom: 20px;
-                }
-                .card-title {
-                    font-size: 24px;
-                    margin-bottom: 15px;
-                    color: #0d6efd;
-                }
-                .card-text {
-                    color: #6c757d;
-                    margin-bottom: 20px;
-                }
-                .btn {
-                    display: inline-block;
-                    padding: 12px 20px;
-                    background-color: #0d6efd;
-                    color: white;
-                    border-radius: 5px;
-                    text-decoration: none;
-                    font-weight: bold;
-                    transition: transform 0.3s ease;
-                    cursor: pointer;
-                }
-                .btn:hover {
-                    background-color: #0b5ed7;
-                }
-                .footer {
-                    margin-top: 40px;
-                    color: #6c757d;
-                    font-size: 14px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Aadhaar Scanner</h1>
-                <p>Select the type of Aadhaar file you want to scan.</p>
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            margin: 0;
+                            padding: 0;
+                            background-color: #f8f9fa;
+                            color: #212529;
+                        }
+                        .container {
+                            max-width: 800px;
+                            margin: 0 auto;
+                            padding: 20px;
+                            text-align: center;
+                        }
+                        h1 {
+                            color: #0d6efd;
+                            margin-bottom: 30px;
+                            font-size: 36px;
+                        }
+                        .card-container {
+                            display: flex;
+                            justify-content: center;
+                            margin-top: 30px;
+                            gap: 40px;
+                        }
+                        .card {
+                            background-color: white;
+                            border-radius: 10px;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                            padding: 30px;
+                            width: 300px;
+                            text-align: center;
+                            transition: transform 0.3s ease, box-shadow 0.3s ease;
+                        }
+                        .card:hover {
+                            transform: translateY(-5px);
+                            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+                        }
+                        .card-icon {
+                            font-size: 64px;
+                            margin-bottom: 20px;
+                        }
+                        .card-title {
+                            font-size: 24px;
+                            margin-bottom: 15px;
+                            color: #0d6efd;
+                        }
+                        .card-text {
+                            color: #6c757d;
+                            margin-bottom: 20px;
+                        }
+                        .btn {
+                            display: inline-block;
+                            padding: 12px 20px;
+                            background-color: #0d6efd;
+                            color: white;
+                            border-radius: 5px;
+                            text-decoration: none;
+                            font-weight: bold;
+                            transition: transform 0.3s ease;
+                            cursor: pointer;
+                        }
+                        .btn:hover {
+                            background-color: #0b5ed7;
+                        }
+                        .footer {
+                            margin-top: 40px;
+                            color: #6c757d;
+                            font-size: 14px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Aadhaar Scanner</h1>
+                        <p>Select the type of Aadhaar file you want to scan.</p>
 
-                <div class="card-container">
-                    <div class="card">
-                        <div class="card-icon">🆔</div>
-                        <h2 class="card-title">DigiLocker Format</h2>
-                        <p class="card-text">Scan and extract information from the DigiLocker format Aadhaar file.</p>
-                        <a href="myapp:///digi_aadhaar" class="btn" id="digilocker-btn">Scan DigiLocker</a>
+                        <div class="card-container">
+                            <div class="card">
+                                <div class="card-icon">🆔</div>
+                                <h2 class="card-title">DigiLocker Format</h2>
+                                <p class="card-text">Scan and extract information from the DigiLocker format Aadhaar file.</p>
+                                <a href="myapp:///digi_aadhaar" class="btn" id="digilocker-btn">Scan DigiLocker</a>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-icon">💳</div>
+                                <h2 class="card-title">Original Format</h2>
+                                <p class="card-text">Scan and extract information from the original format Aadhaar card.</p>
+                                <a href="myapp:///small_aadhaar" class="btn" id="original-btn">Scan Original</a>
+                            </div>
+                        </div>
+                        <div class="btn-container">
+                           <a href="myapp:///createWelcomeScreen" class="btn btn-secondary" id="back-btn">Back</a>
+                           <a href="myapp:///exitApp" class="btn btn-danger" id="exit-btn">Exit</a>
+                        </div>
+                        <div class="footer">
+                            <p>Powered by Gemini AI</p>
+                        </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-icon">💳</div>
-                        <h2 class="card-title">Original Format</h2>
-                        <p class="card-text">Scan and extract information from the original format Aadhaar card.</p>
-                        <a href="myapp:///small_aadhaar" class="btn" id="original-btn">Scan Original</a>
-                    </div>
-                </div>
-                <div class="btn-container">
-                   <a href="myapp:///createWelcomeScreen" class="btn btn-secondary" id="back-btn">Back</a>
-                   <a href="myapp:///exitApp" class="btn btn-danger" id="exit-btn">Exit</a>
-                </div>
-                <div class="footer">
-                    <p>Powered by Gemini AI</p>
-                </div>
-            </div>
-
-        </body>
-        </html>
-        """
+                </body>
+                </html>
+                """
 
         self.aadhaar_html_frame.load_html(html_content)
         self.aadhaar_html_frame.bind("<<TKWebLink>>", self.handle_aadhaar_link_click)
@@ -1109,7 +1107,7 @@ class DocumentScannerApp:
         except Exception as e:
             print(f"Error handling aadhaar link click: {e}")
 
-if __name__ == "__main__":
-    root = ttk.Window(title="Document Scanner", themename="cosmo")
-    app = DocumentScannerApp(root)
-    root.mainloop()
+    if __name__ == "__main__":
+        root = ttk.Window(title="Document Scanner", themename="cosmo")
+        app = DocumentScannerApp(root)
+        root.mainloop()
