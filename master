@@ -240,24 +240,26 @@ class DocumentScannerApp:
         # Bind to the <Hyperlink> event - CORRECTED EVENT NAME
         self.html_frame.bind("<<TKWebLink>>", self.handle_link_click)
 
-    def handle_link_click(event):
-        url = event.widget.get("current linestart", "current lineend")
+    def handle_link_click(self, event):
+        url = self.link_text
         print(f"A link to '{url}' was clicked")
 
         if url.startswith("myapp://"):
-            # Extract the path part (after myapp://)
             path = url.replace("myapp://", "")
             print(f"Connecting to {path}")
 
-            # Handle the custom URL within your application
+            # Handle internal application URLs
             if path == "passport":
-                # Add your logic for handling the passport functionality
-                print("Processing passport request internally")
-                # For example: show_passport_screen()
+                # Call appropriate function to handle passport section
+                self.master.show_passport_section()  # Define this method in your app
+            elif path == "some_other_path":
+                # Handle other internal paths
+                pass
             else:
                 print(f"Unknown internal path: {path}")
         else:
-            # For standard web URLs, open in browser
+            # For standard URLs, use webbrowser
+            import webbrowser
             webbrowser.open(url)
 
 
