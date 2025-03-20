@@ -11,7 +11,7 @@ import base64
 import io
 import urllib.parse  # Import for URL parsing
 
-GEMINI_API_KEY = "api-key"  # Replace with your actual API key
+GEMINI_API_KEY = "AIzaSyBk7K4AH7QmALET8dZRdAAuCC5jsyWrbFM"  # Replace with your actual API key
 
 def call_gemini_api(image_path, doc_type):
     """
@@ -240,24 +240,25 @@ class DocumentScannerApp:
         # Bind to the <Hyperlink> event - CORRECTED EVENT NAME
         self.html_frame.bind("<<TKWebLink>>", self.handle_link_click)
 
-    def handle_link_click(self, event):
-        url = event.widget.get_url()
-        print(f"Link clicked: {url}")  # Debugging
+    def handle_link_click(event):
+        url = event.widget.get("current linestart", "current lineend")
+        print(f"A link to '{url}' was clicked")
 
-        try:
-            parsed_url = urllib.parse.urlparse(url)
-            if parsed_url.scheme == "myapp":
-                if parsed_url.path == "/passport":
-                    self.open_passport_window()
-                elif parsed_url.path == "/aadhaar":
-                    self.open_aadhaar_window()
-                else:
-                    print(f"Unknown myapp URL path: {parsed_url.path}")
+        if url.startswith("myapp://"):
+            # Extract the path part (after myapp://)
+            path = url.replace("myapp://", "")
+            print(f"Connecting to {path}")
+
+            # Handle the custom URL within your application
+            if path == "passport":
+                # Add your logic for handling the passport functionality
+                print("Processing passport request internally")
+                # For example: show_passport_screen()
             else:
-                print(f"Unknown URL scheme: {parsed_url.scheme}")
-
-        except Exception as e:
-            print(f"Error handling link click: {e}")
+                print(f"Unknown internal path: {path}")
+        else:
+            # For standard web URLs, open in browser
+            webbrowser.open(url)
 
 
     def show_about_dialog(self):
