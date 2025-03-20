@@ -6,12 +6,12 @@ import json
 import re
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from ttkwebview import HtmlFrame
+from tkinterweb import HtmlFrame
 import base64
 import io
+import urllib.parse  # Import for URL parsing
 
-
-GEMINI_API_KEY = "AIzaSyBk7K4AH7QmALET8dZRdAAuCC5jsyWrbFM"  # Replace with your actual API key
+GEMINI_API_KEY = "api-key"  # Replace with your actual API key
 
 def call_gemini_api(image_path, doc_type):
     """
@@ -30,7 +30,7 @@ def call_gemini_api(image_path, doc_type):
         model = genai.GenerativeModel('gemini-2.0-flash')
 
         # Create prompt
-        prompt_text = f"Extract all relevant information from this {doc_type.replace('_', ' ')} and return it as a JSON object. You have to check whether it is an aadhar card or a passport. The first entry in the json object should of the format 'document_type' = 'passport' if it is a passport or 'aadhar' if it is an aadhar card. If it is a passport then make sure to recheck the details with the MRZ code at the bottom. If you feel that at any point in any image, any word/s is/are unreadable, then return with just a blurness = unreadable, in the json object. If the image is unreadable then remove the document_type from the json object."
+        prompt_text = f"Extract all relevant information from this {doc_type.replace('_', ' ')} and return it as a JSON object. You have to check whether it is an aadhar card or a passport. The first entry in the json object should be of the format 'document_type' = 'passport' if it is a passport or 'aadhar' if it is an aadhar card. If it is a passport then make sure to recheck the details with the MRZ code at the bottom. If you feel that at any point in any image, any word/s is/are unreadable, then return with just a blurness = unreadable, in the json object. If the image is unreadable then remove the document_type from the json object."
 
         # Generate content
         response = model.generate_content([{"mime_type": "image/jpeg", "data": image_data}, prompt_text])
@@ -125,8 +125,8 @@ class DocumentScannerApp:
         content_frame.pack(fill=BOTH, expand=YES, padx=20, pady=20)
 
         # Create HTML frame for welcome screen
-        html_frame = HtmlFrame(content_frame)
-        html_frame.pack(fill=BOTH, expand=YES)
+        self.html_frame = HtmlFrame(content_frame)  # Store the HtmlFrame as an instance variable
+        self.html_frame.pack(fill=BOTH, expand=YES)
 
         # Load HTML content
         html_content = """
@@ -192,7 +192,7 @@ class DocumentScannerApp:
                     border-radius: 5px;
                     text-decoration: none;
                     font-weight: bold;
-                    transition: background-color 0.3s ease;
+                    transition: transform 0.3s ease;
                     cursor: pointer;
                 }
                 .btn:hover {
@@ -215,14 +215,14 @@ class DocumentScannerApp:
                         <div class="card-icon">🛂</div>
                         <h2 class="card-title">Passport</h2>
                         <p class="card-text">Scan and extract information from passport documents.</p>
-                        <a class="btn" id="passport-btn">Scan Passport</a>
+                        <a href="myapp://passport" class="btn">Scan Passport</a>
                     </div>
 
                     <div class="card">
                         <div class="card-icon">🪪</div>
                         <h2 class="card-title">Aadhaar</h2>
                         <p class="card-text">Scan and extract information from Aadhaar card documents.</p>
-                        <a class="btn" id="aadhaar-btn">Scan Aadhaar</a>
+                        <a href="myapp://aadhaar" class="btn">Scan Aadhaar</a>
                     </div>
                 </div>
 
@@ -231,24 +231,34 @@ class DocumentScannerApp:
                 </div>
             </div>
 
-            <script>
-                document.getElementById('passport-btn').addEventListener('click', function() {
-                    window.pywebview.api.openPassportWindow();
-                });
-
-                document.getElementById('aadhaar-btn').addEventListener('click', function() {
-                    window.pywebview.api.openAadhaarWindow();
-                });
-            </script>
         </body>
         </html>
         """
 
-        html_frame.load_html(html_content)
+        self.html_frame.load_html(html_content)
 
-        # Add JavaScript bindings
-        html_frame.add_js_function("openPassportWindow", self.open_passport_window)
-        html_frame.add_js_function("openAadhaarWindow", self.open_aadhaar_window)
+        # Bind to the <Hyperlink> event - CORRECTED EVENT NAME
+        self.html_frame.bind("<<TKWebLink>>", self.handle_link_click)
+
+    def handle_link_click(self, event):
+        url = event.widget.get_url()
+        print(f"Link clicked: {url}")  # Debugging
+
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if parsed_url.scheme == "myapp":
+                if parsed_url.path == "/passport":
+                    self.open_passport_window()
+                elif parsed_url.path == "/aadhaar":
+                    self.open_aadhaar_window()
+                else:
+                    print(f"Unknown myapp URL path: {parsed_url.path}")
+            else:
+                print(f"Unknown URL scheme: {parsed_url.scheme}")
+
+        except Exception as e:
+            print(f"Error handling link click: {e}")
+
 
     def show_about_dialog(self):
         about_window = ttk.Toplevel(self.root)
@@ -516,7 +526,7 @@ class DocumentScannerApp:
                     border-radius: 5px;
                     text-decoration: none;
                     font-weight: bold;
-                    transition: background-color 0.3s ease;
+                    transition: transform 0.3s ease;
                     cursor: pointer;
                     margin-right: 10px;
                     margin-top: 10px;
@@ -551,15 +561,15 @@ class DocumentScannerApp:
             <div class="json-container">
                 <h2>Extracted Data</h2>
                 <textarea id="json-editor">{formatted_data}</textarea>
-                <button class="btn" onclick="saveChanges()">Save Changes</button>
-                <button class="btn btn-secondary" onclick="window.pywebview.api.closeViewer()">Close</button>
-                <button class="btn btn-danger" onclick="window.pywebview.api.exitApp()">Exit</button>
+                <a href="myapp://save_json" class="btn">Save Changes</a>
+                <button class="btn btn-secondary" onclick="window.close()">Close</button>
+                <button class="btn btn-danger" onclick="window.close()">Exit</button>
             </div>
 
             <script>
                 function saveChanges() {{
                     const jsonData = document.getElementById('json-editor').value;
-                    window.pywebview.api.saveJsonChanges(jsonData);
+                     window.location.href = 'myapp://save_json?' + encodeURIComponent(jsonData);
                 }}
             </script>
         </body>
@@ -567,15 +577,22 @@ class DocumentScannerApp:
         """
         data_html_frame.load_html(data_html)
 
-        # Add JavaScript bindings
-        data_html_frame.add_js_function("saveJsonChanges",
-                                        lambda json_data: self.save_json_changes(json_data, json_file_name))
-        data_html_frame.add_js_function("closeViewer", viewer_window.destroy)
-        data_html_frame.add_js_function("exitApp", self.root.quit)
+        # Bind to the <Hyperlink> event
+        data_html_frame.bind("<<TKWebLink>>", lambda event: self.handle_viewer_link_click(event, json_file_name, viewer_window))
 
-        # Wait for the window to close
-        self.root.wait_window(viewer_window)
 
+    def handle_viewer_link_click(self, event, json_file_name, viewer_window):
+        url = event.widget.get_url()
+        print(f"Link clicked: {url}")
+        if url.startswith("myapp://save_json"):
+             json_data = url.split("?", 1)[1] # Extract JSON data from URL
+             self.save_json_changes(json_data, json_file_name)
+        elif url == 'myapp://closeViewer':
+             viewer_window.destroy()
+        elif url == 'myapp://exitApp':
+             self.root.quit()
+        else:
+           print(f"Unknown URL clicked in viewer window: {url}")
     def save_json_changes(self, json_data, json_file_name):
         try:
             data = json.loads(json_data)
@@ -613,8 +630,8 @@ class DocumentScannerApp:
         file_list_window.geometry("800x600")
 
         # Create HTML frame for file selector
-        html_frame = HtmlFrame(file_list_window)
-        html_frame.pack(fill=BOTH, expand=YES)
+        self.file_selector_html_frame = HtmlFrame(file_list_window)
+        self.file_selector_html_frame.pack(fill=BOTH, expand=YES)
 
         # Load HTML content for file selector
         html_content = f"""
@@ -668,7 +685,7 @@ class DocumentScannerApp:
                     border-radius: 5px;
                     text-decoration: none;
                     font-weight: bold;
-                    transition: background-color 0.3s ease;
+                    transition: transform 0.3s ease;
                     cursor: pointer;
                 }}
                 .btn:hover {{
@@ -719,22 +736,20 @@ class DocumentScannerApp:
             </div>
 
             <script>
-                let selectedFiles = [];
-
-                document.getElementById('select-files-btn').addEventListener('click', function() {{
-                    window.pywebview.api.selectFiles();
+                 document.getElementById('select-files-btn').addEventListener('click', function() {{
+                    window.location.href = 'myapp://selectFiles';
                 }});
 
                 document.getElementById('process-btn').addEventListener('click', function() {{
-                    window.pywebview.api.processFiles();
+                      window.location.href = 'myapp://processFiles';
                 }});
 
                 document.getElementById('back-btn').addEventListener('click', function() {{
-                    window.pywebview.api.closeFileSelector();
+                      window.location.href = 'myapp://closeFileSelector';
                 }});
 
                 document.getElementById('exit-btn').addEventListener('click', function() {{
-                    window.pywebview.api.exitApp();
+                      window.location.href = 'myapp://exitApp';
                 }});
 
                 function updateFileList(files) {{
@@ -754,30 +769,48 @@ class DocumentScannerApp:
                     fileList.innerHTML = html;
                 }}
 
-                // Function to be called from Python
-                window.updateFileList = updateFileList;
+
             </script>
         </body>
         </html>
         """
 
-        html_frame.load_html(html_content)
+        self.file_selector_html_frame.load_html(html_content)
 
         # Create a listbox to store selected files (hidden)
-        file_list = tk.Listbox(file_list_window)
-        file_list.pack_forget()  # Hide the listbox
+        self.file_list = tk.Listbox(file_list_window) # Make it an instance variable
+        self.file_list.pack_forget()  # Hide the listbox
 
-        # Add JavaScript bindings
-        html_frame.add_js_function("selectFiles", lambda: self.select_files_and_update_ui(file_list, html_frame))
-        html_frame.add_js_function("processFiles", lambda: self.process_selected_files(file_list, doc_type, file_list_window))
-        html_frame.add_js_function("closeFileSelector", file_list_window.destroy)
-        html_frame.add_js_function("exitApp", self.root.quit)
+        # Bind to the <Hyperlink> event - CORRECTED EVENT NAME
+        self.file_selector_html_frame.bind("<<TKWebLink>>", lambda event: self.handle_file_selector_link_click(event, doc_type, file_list_window))
 
-    def select_files_and_update_ui(self, file_list, html_frame):
+    def handle_file_selector_link_click(self, event, doc_type, file_list_window):
+        url = event.widget.get_url()
+        print(f"File Selector Link Clicked: {url}")
+
+        if url == "myapp://selectFiles":
+            self.select_files_and_update_ui(self.file_list, doc_type)
+        elif url == "myapp://processFiles":
+            self.process_selected_files(self.file_list, doc_type, file_list_window)
+        elif url == "myapp://closeFileSelector":
+             file_list_window.destroy()
+        elif url == "myapp://exitApp":
+             self.root.quit()
+        else:
+           print(f"Unknown URL clicked in file selector: {url}")
+
+    def select_files_and_update_ui(self, file_list,  doc_type):
         files = self.select_files(file_list)
         if files:
             # Update the HTML list with selected files
-            html_frame.evaluate_js(f"updateFileList({json.dumps(files)})")
+             file_list_string = json.dumps(files)
+             script = f"updateFileList({file_list_string})"
+
+             try:
+                self.file_selector_html_frame.run_script(script)  # Use run_script
+             except Exception as e:
+                print(f"Error running script: {e}")
+
 
     def process_selected_files(self, file_list, doc_type, file_list_window):
         selected_files = [file_list.get(i) for i in range(file_list.size())]
@@ -794,8 +827,8 @@ class DocumentScannerApp:
         content_frame = ttk.Frame(self.main_frame)
         content_frame.pack(fill=BOTH, expand=YES, padx=20, pady=20)
 
-        html_frame = HtmlFrame(content_frame)
-        html_frame.pack(fill=BOTH, expand=YES)
+        self.passport_html_frame = HtmlFrame(content_frame) # Make sure to assign it to self
+        self.passport_html_frame.pack(fill=BOTH, expand=YES)
 
         html_content = """
         <!DOCTYPE html>
@@ -860,7 +893,7 @@ class DocumentScannerApp:
                     border-radius: 5px;
                     text-decoration: none;
                     font-weight: bold;
-                    transition: background-color 0.3s ease;
+                    transition: transform 0.3s ease;
                     cursor: pointer;
                 }
                 .btn:hover {
@@ -883,51 +916,53 @@ class DocumentScannerApp:
                         <div class="card-icon">🛂</div>
                         <h2 class="card-title">Front Page</h2>
                         <p class="card-text">Scan and extract information from the front page of the passport.</p>
-                        <a class="btn" id="passport-front-btn">Scan Front Page</a>
+                        <a href="myapp:///passport_front" class="btn" id="passport-front-btn">Scan Front Page</a>
                     </div>
 
                     <div class="card">
                         <div class="card-icon">📄</div>
                         <h2 class="card-title">Back Page</h2>
                         <p class="card-text">Scan and extract information from the back page of the passport.</p>
-                        <a class="btn" id="passport-back-btn">Scan Back Page</a>
+                        <a href="myapp:///passport_back" class="btn" id="passport-back-btn">Scan Back Page</a>
                     </div>
                 </div>
                 <div class="btn-container">
-                    <button class="btn btn-secondary" id="back-btn">Back</button>
-                    <button class="btn btn-danger" id="exit-btn">Exit</button>
+                    <a href="myapp:///createWelcomeScreen" class="btn btn-secondary" id="back-btn">Back</a>
+                    <a href="myapp:///exitApp" class="btn btn-danger" id="exit-btn">Exit</a>
                 </div>
                 <div class="footer">
                     <p>Powered by Gemini AI</p>
                 </div>
             </div>
 
-            <script>
-                document.getElementById('passport-front-btn').addEventListener('click', function() {
-                    window.pywebview.api.openMultiFileSelector('passport_front');
-                });
-
-                document.getElementById('passport-back-btn').addEventListener('click', function() {
-                    window.pywebview.api.openMultiFileSelector('passport_back');
-                });
-                document.getElementById('back-btn').addEventListener('click', function() {
-                    window.pywebview.api.createWelcomeScreen();
-                });
-
-                document.getElementById('exit-btn').addEventListener('click', function() {
-                    window.pywebview.api.exitApp();
-                });
-            </script>
         </body>
         </html>
         """
 
-        html_frame.load_html(html_content)
+        self.passport_html_frame.load_html(html_content)
+        self.passport_html_frame.bind("<<TKWebLink>>", self.handle_passport_link_click)
 
-        # Add JavaScript bindings
-        html_frame.add_js_function("openMultiFileSelector", self.open_multi_file_selector)
-        html_frame.add_js_function("createWelcomeScreen", self.create_welcome_screen)
-        html_frame.add_js_function("exitApp", self.root.quit)
+
+    def handle_passport_link_click(self, event):
+        url = event.widget.get_url()
+        print(f"Passport Link Clicked: {url}")
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if parsed_url.scheme == "myapp":
+                if parsed_url.path == "/passport_front":
+                    self.open_multi_file_selector('passport_front')
+                elif parsed_url.path == "/passport_back":
+                    self.open_multi_file_selector('passport_back')
+                elif parsed_url.path == "/createWelcomeScreen":
+                    self.create_welcome_screen()
+                elif parsed_url.path == "/exitApp":
+                    self.root.quit()
+                else:
+                    print(f"Unknown myapp URL path in passport window: {parsed_url.path}")
+            else:
+                print(f"Unknown URL scheme in passport window: {parsed_url.scheme}")
+        except Exception as e:
+            print(f"Error handling passport link click: {e}")
 
     def open_aadhaar_window(self):
         self.clear_main_content()
@@ -935,8 +970,8 @@ class DocumentScannerApp:
         content_frame = ttk.Frame(self.main_frame)
         content_frame.pack(fill=BOTH, expand=YES, padx=20, pady=20)
 
-        html_frame = HtmlFrame(content_frame)
-        html_frame.pack(fill=BOTH, expand=YES)
+        self.aadhaar_html_frame = HtmlFrame(content_frame)
+        self.aadhaar_html_frame.pack(fill=BOTH, expand=YES)
 
         html_content = """
         <!DOCTYPE html>
@@ -1001,7 +1036,7 @@ class DocumentScannerApp:
                     border-radius: 5px;
                     text-decoration: none;
                     font-weight: bold;
-                    transition: background-color 0.3s ease;
+                    transition: transform 0.3s ease;
                     cursor: pointer;
                 }
                 .btn:hover {
@@ -1024,51 +1059,52 @@ class DocumentScannerApp:
                         <div class="card-icon">🆔</div>
                         <h2 class="card-title">DigiLocker Format</h2>
                         <p class="card-text">Scan and extract information from the DigiLocker format Aadhaar file.</p>
-                        <a class="btn" id="digilocker-btn">Scan DigiLocker</a>
+                        <a href="myapp:///digi_aadhaar" class="btn" id="digilocker-btn">Scan DigiLocker</a>
                     </div>
 
                     <div class="card">
                         <div class="card-icon">💳</div>
                         <h2 class="card-title">Original Format</h2>
                         <p class="card-text">Scan and extract information from the original format Aadhaar card.</p>
-                        <a class="btn" id="original-btn">Scan Original</a>
+                        <a href="myapp:///small_aadhaar" class="btn" id="original-btn">Scan Original</a>
                     </div>
                 </div>
                 <div class="btn-container">
-                    <button class="btn btn-secondary" id="back-btn">Back</button>
-                    <button class="btn btn-danger" id="exit-btn">Exit</button>
+                   <a href="myapp:///createWelcomeScreen" class="btn btn-secondary" id="back-btn">Back</a>
+                   <a href="myapp:///exitApp" class="btn btn-danger" id="exit-btn">Exit</a>
                 </div>
                 <div class="footer">
                     <p>Powered by Gemini AI</p>
                 </div>
             </div>
 
-            <script>
-                document.getElementById('digilocker-btn').addEventListener('click', function() {
-                    window.pywebview.api.openMultiFileSelector('digi_aadhaar');
-                });
-
-                document.getElementById('original-btn').addEventListener('click', function() {
-                    window.pywebview.api.openMultiFileSelector('small_aadhaar');
-                });
-                document.getElementById('back-btn').addEventListener('click', function() {
-                    window.pywebview.api.createWelcomeScreen();
-                });
-
-                document.getElementById('exit-btn').addEventListener('click', function() {
-                    window.pywebview.api.exitApp();
-                });
-            </script>
         </body>
         </html>
         """
 
-        html_frame.load_html(html_content)
+        self.aadhaar_html_frame.load_html(html_content)
+        self.aadhaar_html_frame.bind("<<TKWebLink>>", self.handle_aadhaar_link_click)
 
-        # Add JavaScript bindings
-        html_frame.add_js_function("openMultiFileSelector", self.open_multi_file_selector)
-        html_frame.add_js_function("createWelcomeScreen", self.create_welcome_screen)
-        html_frame.add_js_function("exitApp", self.root.quit)
+    def handle_aadhaar_link_click(self, event):
+        url = event.widget.get_url()
+        print(f"Aadhaar Link Clicked: {url}")
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if parsed_url.scheme == "myapp":
+                if parsed_url.path == "/digi_aadhaar":
+                    self.open_multi_file_selector('digi_aadhaar')
+                elif parsed_url.path == "/small_aadhaar":
+                    self.open_multi_file_selector('small_aadhaar')
+                elif parsed_url.path == "/createWelcomeScreen":
+                    self.create_welcome_screen()
+                elif parsed_url.path == "/exitApp":
+                    self.root.quit()
+                else:
+                    print(f"Unknown myapp URL path in aadhaar window: {parsed_url.path}")
+            else:
+                print(f"Unknown URL scheme in aadhaar window: {parsed_url.scheme}")
+        except Exception as e:
+            print(f"Error handling aadhaar link click: {e}")
 
 if __name__ == "__main__":
     root = ttk.Window(title="Document Scanner", themename="cosmo")
